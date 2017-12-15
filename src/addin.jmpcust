@@ -1,0 +1,18 @@
+<!-- JMP Add-In Builder created --><jm:menu_and_toolbar_customizations xmlns:jm="http://www.jmp.com/ns/menu" version="3">
+  <jm:insert_in_main_menu>
+    <jm:insert_in_menu>
+      <jm:name>ADD-INS</jm:name>
+      <jm:insert_after>
+        <jm:name></jm:name>
+        <jm:command>
+          <jm:name>3D PLOT TOOLS</jm:name>
+          <jm:caption>3D Plot Tools</jm:caption>
+          <jm:action type="path">$ADDIN_HOME(com.github.himanga.JMP3DPlotTools)\scatterplot3dtogif.jsl</jm:action>
+          <jm:tip>Rotate and make .gif images.</jm:tip>
+          <jm:icon type="none"></jm:icon>
+        </jm:command>
+      </jm:insert_after>
+    </jm:insert_in_menu>
+  </jm:insert_in_main_menu>
+</jm:menu_and_toolbar_customizations>
+
