@@ -1,0 +1,339 @@
+//Find this add in on the JMP Community
+//https://community.jmp.com/t5/JMP-Add-Ins/3D-Plot-Tools/ta-p/48699/jump-to/first-unread-message
+//
+//and on github:
+//https://github.com/himanga/JMP3DPlotTools
+//
+
+Names default to here( 1 );
+
+//Utility function to make for loops, combo 'map' and 'apply'
+//this is a 'fake' map/apply function because it allows (and 
+//is used for) side effects and it also returns a value
+mapply = function( {x, foo, arg1 = "__missing", arg2 = "__missing"}, { i, r = {}, x, foo, arg1, arg2 },
+	if( N Items( x ) < 1,
+		return({}), //empty list supplied, return an empty list
+		for( i = 1, i <= N Items(x), i++,
+			if( 
+				arg1 == "__missing",
+				r = Insert( r, foo( x[i] ) ),
+				arg2 == "__missing",
+				r = Insert( r, foo( x[i], arg1 ) ),
+				r = Insert( r, foo( x[i], arg1, arg2 ) )
+			)
+		)
+	);
+	return(r);
+);
+
+//Return only elements of a list for which a function returns true
+filter = function( {x, foo, arg1 = "__missing", arg2 = "__missing"}, {x, foo, arg1, arg2},
+	x[ Loc( matrix( mapply( x, Name Expr( foo ), arg1, arg2 ) ) ) ]
+);
+
+//Check if a window is a scatterplot 3D window
+checkifs3d = function({x}, 
+	returnvalue = 0;
+	Try( If( 
+		N Items( Regex Match(
+			x << get window title, 
+			"^(.*- Scatterplot 3D.*)$")
+		) > 1,
+		returnvalue = 1
+	) );
+	return(returnvalue);
+);
+
+//Get the current rotation of the scatterplot
+GetScatterplot = function( {},
+	selIndex = lbWin << Get Selected Indices;
+	if(N Items(selIndex) > 0,
+		//get scatterplot
+		sp = ((s3dwins[min(selIndex)] << Find(OutlineBox(1))) << Get Scriptable Object);
+	);
+	{ gx, gy, gz } = (sp << Frame3d( Get Rotation( ) ) );
+	neb_x << Set( gx );
+	neb_y << Set( gy );
+	neb_z << Set( gz );
+);
+
+//Update the user interface with the current list of 3D windows
+RefreshWindows = function( {},
+	wins = Get window list();
+	s3dwins = filter( wins, Expr( checkifs3d ) );
+	lbWin << Set Items( s3dwins << Get Window Title );
+	if(N Items(s3dwins) > 0, lbWin << Set Selected( 1 ) );
+);
+
+//Create a blank white image
+MouseImage = function( {type = "leftright" },
+	//type = "both";
+	x = if(type=="leftright", 15, 20 );
+	y = 20;
+	ni = New Image( x, y );
+	ni << setpixels( "rgb", { J( y, x, 1 ), J( y, x, 1 ), J( y, x, 1 )} );
+	pb = Picture Box( ni );
+	if( type == "leftright",
+		pb << add line annotation( line(  6,  4,  2, 10 ) ); //left top
+		pb << add line annotation( line(  2, 10,  6, 16 ) ); //left bottom
+		pb << add line annotation( line(  9,  4, 13, 10 ) ); //right top
+		pb << add line annotation( line( 13, 10,  9, 16 ) ); //right bottom
+	, type == "both",
+		pb << add line annotation( line(  4,  6,  1, 10 ) ); //left top
+		pb << add line annotation( line(  1, 10,  4, 14 ) ); //left bottom
+		pb << add line annotation( line( 16,  6, 19, 10 ) ); //right top
+		pb << add line annotation( line( 19, 10, 16, 14 ) ); //right bottom
+		pb << add line annotation( line(  6,  4, 10,  1 ) ); //top left
+		pb << add line annotation( line( 10,  1, 14,  4 ) ); //top right
+		pb << add line annotation( line(  6, 16, 10, 19 ) ); //bottom left
+		pb << add line annotation( line( 10, 19, 14, 16 ) ); //bottom right
+	);
+	nipb = (pb << Get Picture);
+	nipbp = nipb << Get Pixels;
+	w = N Cols(nipbp);
+	h = N Row(nipbp);
+	
+	//Remove the border from around the picture, added by << Get Picture
+	nif = New image();
+	nif << Set Pixels( nipbp[floor((h-y)/2)::floor((h-y)/2 + y - 1),floor((h-x)/2)::floor((h-x)/2 + x - 1)] );
+	
+	return( nif );
+);
+//New window("hi", picture box(mouseImage("both")))
+//Rotate a scatterplot about an axis and output a gif animation
+MakeRotatingGIF = function({},
+	
+	//Get the initial rotation
+	{ gx, gy, gz } = (sp << Frame3d( Get Rotation( ) ) );
+	
+	//where to save the file
+	filepath = tebFile << get text;
+
+	//length of animation in seconds
+	a_duration = nebSec << get;
+
+	//frames per second
+	a_fps = nebFPS << get;
+
+	//Frame duration - seconds per frame
+	a_spf = 1000 / a_fps;
+	
+	//Total frames
+	a_framecount = a_duration * a_fps;
+
+	for(frame = 1, frame <= a_framecount, frame++,
+		
+		//calculate rotations
+		x = neb_x << get; //how far to tilt graph towards the viewer
+		y = 360 * (frame - 1)  / a_framecount;
+		z = neb_z << get;
+		
+		//rotate the scatterplot
+		sp << Frame3d( Set Rotation( x, y, z ) );
+		
+		//make sure the plot is redrawn
+		sp << update window;
+		
+		//take a picture
+		img = (sp << Find( Picture Box(1) )) << Get Picture;
+
+		if ( frame == 1,
+			//start with the first frame
+			imgout = img; // start the animated gif with the first image
+		,	
+			//add this frame to everythign drawn so far
+			imgout << addFrame;
+			imgout << setPixels( img << getPixels );
+		);
+		
+		//set time per frame
+		imgout << setFrameDuration( a_spf );
+
+	);
+	
+	//Save the combined image
+	imgout << saveImage( filepath, "gif" );
+
+	//open the combined image
+	Open( filepath );
+	
+	//Restore rotation
+	sp << Frame3d( Set Rotation( gx, gy, gz ) );
+);
+
+//Create an image that a user can click on and move their mouse to rotate the
+//scatterplot 
+MovePlotWindow = function( {x_action = Expr( gx + dy),
+					  y_action = Expr( gy - dx ),
+					  z_action = Expr( gz ),
+					  type = "both"
+					  },
+	Eval( Eval Expr(
+		Border Box( MouseBox(
+			MouseImage( type ),
+			<<setTrackEnable( 1 ),
+			<<setTrack(
+				Function( {this, clickpt},
+					this << setCursor( "Finger" ) /* button-up tracking - use the hand */
+				)
+			),
+			<<setClickEnable( 1 ),
+			<<setClick( /* button-down, move, button-release handler */
+				Function( {this, clickpt, event}, /*Is Alt Key(),Is Control Key(),Is Shift Key() should be captured on "Pressed" */
+					If( event == "Released" | event == "Canceled",
+						this << setCursor( "Arrow" ) /* switch back to hand immediately */
+					,
+						this << setCursor( "Hand" ) /* change cursor during drawing */
+					);
+					If(
+						event == "Pressed",
+							origin = clickpt; /* capture starting point */
+							sp = ((s3dwins[min(lbWin << Get Selected Indices)] << Find(OutlineBox(1))) << Get Scriptable Object);
+							{ gx, gy, gz } = (sp << Frame3d( Get Rotation( ) ) );
+							//neb_x << Set( Expr( Name Expr( x_action ) ) )
+					,		
+							//Show( event, origin );,
+						event == "Moved", /* else */
+							{x0, y0} = origin;
+							{x1, y1} = clickpt;
+							dx = x1 - x0;
+							dy = y1 - y0;
+							SetRotation( 
+								Expr( ( Name Expr( x_action ) ) ), 
+								Expr( ( Name Expr( y_action ) ) ),
+								Expr( Name Expr( z_action ) )
+							);
+							sp << reshow; /* force screen update */
+					,
+						event == "Released",
+							//neb_x << Set( Expr( Name Expr( x_action ) ) )
+					);
+				)
+			)
+		), << Margin( Left(5) ) )
+	) )
+);
+
+SetRotation = function( {x,y,z},
+	sp << Frame3d( Set Rotation( x, y, z ) );
+	neb_x << Set( x, run script(0) );
+	neb_y << Set( y, run script(0) );
+	neb_z << Set( z, run script(0) );	
+);
+
+
+sp = {};
+wins = {};
+s3dwins = {};
+
+//User interface
+win = new window(
+	"3D Graph Tools",
+	v list box(
+		
+		text box(
+			"3D Plot Tools", 
+			<< set font size( 14 ), 
+			<< padding( top(0), left( 0 ), right( 0 ) , bottom( 0 ) ) ),
+		text box(
+			"Tools to facilitate working with 3D plots."
+		),
+		SpacerBox( size( 10, 10 ) ),
+		H List Box(
+			text box(
+				"Select a window:"
+			),
+			Button box(
+				"Open an example",
+				dtEx = Open( "$Sample_data/iris.jmp" );
+				dtEx << Run Script("Scatterplot 3D");
+				RefreshWindows();,
+				<< Underline Style( 1 )
+			)
+		),
+		H List Box(
+			lbWin = List box( 10 ,
+				<<Set Script(GetScatterplot())
+			),
+			V List Box(
+				Button Box( "Refresh List", RefreshWindows() ),
+				Button Box( "Bring Window to Front",
+					sp << Bring window to front()
+				)
+			)
+		),
+		SpacerBox( size( 10, 10 ) ),
+		
+		Panel Box( "Move Chart",
+			v list box(
+				H list box(
+					V Center Box( Textbox( "Tilt and Rotate" ) ),
+					V Center Box( MovePlotWindow( Expr( gx + dy ), Expr( gy + dx ), Expr( gz ), "both" ) )
+				),
+				Spacer box( size( 5, 5 ) ),
+				Line up Box(N col(3),
+					V Center Box( Textbox("Tilt") ),
+					V Center Box( neb_x = Number Edit Box( 0, << Set Function( Function( {this},
+						{ gx, gy, gz } = (sp << Frame3d( Get Rotation( ) ) );
+						sp << Frame3d( Set Rotation( this << get, gy, gz ) )
+					) ) ) ),
+					V Center Box( MovePlotWindow( Expr( gx + dx ), Expr( gy ), Expr( gz ), "leftright" ) ),
+					
+					Textbox("Rotate Y"),
+					neb_y = Number Edit Box(0, << Set Function( Function( {this},
+						{ gx, gy, gz } = (sp << Frame3d( Get Rotation( ) ) );
+						sp << Frame3d( Set Rotation( gx, this << get, gz ) )
+					) ) ),
+					MovePlotWindow( Expr( gx ), Expr( gy + dx ), Expr( gz ), "leftright" ),
+					
+					Textbox("Rotate Z"),
+					neb_z = Number Edit Box(0, << Set Function( Function( {this},
+						{ gx, gy, gz } = (sp << Frame3d( Get Rotation( ) ) );
+						sp << Frame3d( Set Rotation( gx, gy, this << get ) )
+					) ) ),
+					MovePlotWindow( Expr( gx ), Expr( gy ), Expr( gz + dx ), "leftright" )
+				),
+				Button Box( "Reset", SetRotation( 20, 0, 0 ), << Underline Style( 1 ) ),
+				<< Padding( top(0), left( 0 ), right( 0 ), bottom( 0 ) )
+			)
+		),
+		Panel box( "Make rotating gif",
+			Text Box( "Set tilt and Z rotation above, the Y axis is rotated." ),
+			SpacerBox( size( 10, 10 ) ),
+			H List Box(
+				V List Box(
+					text box( "Duration (s)" ),
+					nebSec = Number edit box( 10 )
+				),
+				SpacerBox( size( 10, 10 ) ),
+				V List Box(
+					text box( "FPS" ),
+					nebFPS = Number edit box( 10 )
+				)
+			),
+			SpacerBox( size( 10, 10 ) ),
+			text box(
+				"Filename:"
+			),
+			tebFile = Text edit box( Convert file path( "$Desktop/Scarrerplot3D.gif", "Windows"), << Set Width( 400 ) ),
+			SpacerBox( size( 10, 10 ) ),
+			H List Box(
+				button box( "Select File", tebFile << Set Text( Convert file path( Pick File(
+					"Choose a place to save the gif",
+					"$Desktop",
+					{"gif image file (.gif)|gif"},
+					1,
+					1,
+					"scatterplot3d.gif"
+				), "Windows" ) ) ),
+				
+				Button box( "Make gif", MakeRotatingGIF )
+			)
+		),
+		<< Padding( 10 )
+	)
+);
+
+RefreshWindows();
+GetScatterplot();
+
