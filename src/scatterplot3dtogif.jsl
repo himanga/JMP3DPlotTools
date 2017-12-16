@@ -315,7 +315,7 @@ win = new window(
 			text box(
 				"Filename:"
 			),
-			tebFile = Text edit box( Convert file path( "$Desktop/Scarrerplot3D.gif", "Windows"), << Set Width( 400 ) ),
+			tebFile = Text edit box( Convert file path( "$Desktop/Scatterplot3D.gif", "Windows"), << Set Width( 400 ) ),
 			SpacerBox( size( 10, 10 ) ),
 			H List Box(
 				button box( "Select File", tebFile << Set Text( Convert file path( Pick File(
