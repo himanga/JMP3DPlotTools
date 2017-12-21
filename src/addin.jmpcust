@@ -7,7 +7,7 @@
         <jm:command>
           <jm:name>3D PLOT TOOLS</jm:name>
           <jm:caption>3D Plot Tools</jm:caption>
-          <jm:action type="path">$ADDIN_HOME(com.github.himanga.JMP3DPlotTools)\scatterplot3dtogif.jsl</jm:action>
+          <jm:action type="path">$ADDIN_HOME(com.github.himanga.JMP3DPlotTools)\main.jsl</jm:action>
           <jm:tip>Rotate and make .gif images.</jm:tip>
           <jm:icon type="none"></jm:icon>
         </jm:command>
