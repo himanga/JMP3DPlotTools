@@ -28,7 +28,13 @@ mapply = function( {x, foo, arg1 = "__missing", arg2 = "__missing"}, { i, r = {}
 
 //Return only elements of a list for which a function returns true
 filter = function( {x, foo, arg1 = "__missing", arg2 = "__missing"}, {x, foo, arg1, arg2},
-	x[ Loc( matrix( mapply( x, Name Expr( foo ), arg1, arg2 ) ) ) ]
+	If( N Items(x) > 0,
+		itemstoreturn = Loc( matrix( mapply( x, Name Expr( foo ), arg1, arg2 ) ) );
+		if(N items(itemstoreturn) > 0,
+			return(x[ itemstoreturn ]),
+		)
+	);
+	return({})
 );
 
 //Check if a window is a scatterplot 3D window
@@ -49,9 +55,10 @@ GetScatterplot = function( {},
 	selIndex = lbWin << Get Selected Indices;
 	if(N Items(selIndex) > 0,
 		//get scatterplot
-		sp = ((s3dwins[min(selIndex)] << Find(OutlineBox(1))) << Get Scriptable Object);
+		//sp = ((s3dwins[min(selIndex)] << Find(OutlineBox(1))) << Get Scriptable Object);
+		sp = ((s3dwins[selIndex] << Find(OutlineBox(1))) << Get Scriptable Object);
 	);
-	{ gx, gy, gz } = (sp << Frame3d( Get Rotation( ) ) );
+	{ gx, gy, gz } = (sp[1] << Frame3d( Get Rotation( ) ) );
 	neb_x << Set( gx );
 	neb_y << Set( gy );
 	neb_z << Set( gz );
@@ -107,7 +114,7 @@ MouseImage = function( {type = "leftright" },
 MakeRotatingGIF = function({},
 	
 	//Get the initial rotation
-	{ gx, gy, gz } = (sp << Frame3d( Get Rotation( ) ) );
+	{ gx, gy, gz } = (sp[1] << Frame3d( Get Rotation( ) ) );
 	
 	//where to save the file
 	filepath = tebFile << get text;
@@ -132,13 +139,13 @@ MakeRotatingGIF = function({},
 		z = neb_z << get;
 		
 		//rotate the scatterplot
-		sp << Frame3d( Set Rotation( x, y, z ) );
+		sp[1] << Frame3d( Set Rotation( x, y, z ) );
 		
 		//make sure the plot is redrawn
-		sp << update window;
+		sp[1] << update window;
 		
 		//take a picture
-		img = (sp << Find( Picture Box(1) )) << Get Picture;
+		img = (sp[1] << Find( Picture Box(1) )) << Get Picture;
 
 		if ( frame == 1,
 			//start with the first frame
@@ -161,7 +168,7 @@ MakeRotatingGIF = function({},
 	Open( filepath );
 	
 	//Restore rotation
-	sp << Frame3d( Set Rotation( gx, gy, gz ) );
+	sp[1] << Frame3d( Set Rotation( gx, gy, gz ) );
 );
 
 //Create an image that a user can click on and move their mouse to rotate the
@@ -191,8 +198,10 @@ MovePlotWindow = function( {x_action = Expr( gx + dy),
 					If(
 						event == "Pressed",
 							origin = clickpt; /* capture starting point */
-							sp = ((s3dwins[min(lbWin << Get Selected Indices)] << Find(OutlineBox(1))) << Get Scriptable Object);
-							{ gx, gy, gz } = (sp << Frame3d( Get Rotation( ) ) );
+							//sp = ((s3dwins[min(lbWin << Get Selected Indices)] << Find(OutlineBox(1))) << Get Scriptable Object);
+							selIndex = lbWin << Get Selected Indices;
+							sp = ((s3dwins[selIndex] << Find(OutlineBox(1))) << Get Scriptable Object);
+							{ gx, gy, gz } = (sp[1] << Frame3d( Get Rotation( ) ) );
 							//neb_x << Set( Expr( Name Expr( x_action ) ) )
 					,		
 							//Show( event, origin );,
@@ -277,21 +286,21 @@ win = new window(
 				Line up Box(N col(3),
 					V Center Box( Textbox("Tilt") ),
 					V Center Box( neb_x = Number Edit Box( 0, << Set Function( Function( {this},
-						{ gx, gy, gz } = (sp << Frame3d( Get Rotation( ) ) );
+						{ gx, gy, gz } = (sp[1] << Frame3d( Get Rotation( ) ) );
 						sp << Frame3d( Set Rotation( this << get, gy, gz ) )
 					) ) ) ),
 					V Center Box( MovePlotWindow( Expr( gx + dx ), Expr( gy ), Expr( gz ), "leftright" ) ),
 					
 					Textbox("Rotate Y"),
 					neb_y = Number Edit Box(0, << Set Function( Function( {this},
-						{ gx, gy, gz } = (sp << Frame3d( Get Rotation( ) ) );
+						{ gx, gy, gz } = (sp[1] << Frame3d( Get Rotation( ) ) );
 						sp << Frame3d( Set Rotation( gx, this << get, gz ) )
 					) ) ),
 					MovePlotWindow( Expr( gx ), Expr( gy + dx ), Expr( gz ), "leftright" ),
 					
 					Textbox("Rotate Z"),
 					neb_z = Number Edit Box(0, << Set Function( Function( {this},
-						{ gx, gy, gz } = (sp << Frame3d( Get Rotation( ) ) );
+						{ gx, gy, gz } = (sp[1] << Frame3d( Get Rotation( ) ) );
 						sp << Frame3d( Set Rotation( gx, gy, this << get ) )
 					) ) ),
 					MovePlotWindow( Expr( gx ), Expr( gy ), Expr( gz + dx ), "leftright" )
