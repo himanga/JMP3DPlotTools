@@ -59,7 +59,10 @@ GetScatterplot = function( {},
 
 //Update the user interface with the current list of 3D windows
 RefreshWindows = function( {},
-	wins = Get window list();
+	If(num(left(jmpversion(), 2)) >= 14,
+		wins = Get Window List(),
+		wins = Window()
+	);
 	s3dwins = filter( wins, Expr( checkifs3d ) );
 	lbWin << Set Items( s3dwins << Get Window Title );
 	if(N Items(s3dwins) > 0, lbWin << Set Selected( 1 ) );
