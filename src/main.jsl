@@ -57,11 +57,11 @@ GetScatterplot = function( {},
 		//get scatterplot
 		//sp = ((s3dwins[min(selIndex)] << Find(OutlineBox(1))) << Get Scriptable Object);
 		sp = ((s3dwins[selIndex] << Find(OutlineBox(1))) << Get Scriptable Object);
+		{ gx, gy, gz } = (sp[1] << Frame3d( Get Rotation( ) ) );
+		neb_x << Set( gx );
+		neb_y << Set( gy );
+		neb_z << Set( gz );
 	);
-	{ gx, gy, gz } = (sp[1] << Frame3d( Get Rotation( ) ) );
-	neb_x << Set( gx );
-	neb_y << Set( gy );
-	neb_z << Set( gz );
 );
 
 //Update the user interface with the current list of 3D windows
@@ -71,8 +71,10 @@ RefreshWindows = function( {},
 		wins = Window()
 	);
 	s3dwins = filter( wins, Expr( checkifs3d ) );
-	lbWin << Set Items( s3dwins << Get Window Title );
-	if(N Items(s3dwins) > 0, lbWin << Set Selected( 1 ) );
+	if(	N Items(s3dwins) > 0,
+		lbWin << Set Items( s3dwins << Get Window Title );
+		lbWin << Set Selected( 1 )
+	);
 );
 
 //Create a blank white image
